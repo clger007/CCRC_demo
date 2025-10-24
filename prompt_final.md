@@ -1,39 +1,30 @@
-You are a clinical documentation expert.
+I am providing you with two pieces of information:
 
-Task: Analyze the clinical note to determine the *current* status of three symptoms: Anxiety, Depression, and Pain.
+1. **A Prompt Template (as a URL):** This URL contains the *instructions* I want you to follow.
+   https://github.com/clger007/CCRC_demo/blob/main/prompt_final.md
 
-Instructions:
-For each symptom, assign one of the following three labels:
+2. **An Input Note (as text):** This is the text I want you to analyze.
+   https://github.com/clger007/CCRC_demo/blob/main/note_example_1.md
 
-1.  **"present"**: The note *explicitly states* the patient has the symptom *now*.
-    * Examples: "feels anxious," "reports knee pain"
-    * Synonyms:
-        * Anxiety: nervousness, worry, panic
-        * Depression: low mood, sadness, anhedonia
-        * Pain: ache, soreness, discomfort
+**Your Task:**
+You MUST use the instructions from the **Prompt Template URL** to analyze the **Input Note**.
 
-2.  **"absent"**: The note *explicitly denies* the symptom.
-    * Examples: "denies anxiety," "no depressive symptoms," "negative for pain"
+**DO NOT** describe or summarize the prompt template. Just execute it on the note.
 
-3.  **"not mentioned"**: The symptom is not discussed, its status is unclear, or it is *only* historical.
-    * Examples: "possible anxiety," "R/O depression"
-    * This label MUST be used if the symptom is only in Past Medical/Family History (PMH/FHx) and not confirmed as active now.
+**Output Format:**
+Show a complete view for the audience:
+1. Display the **original clinical note** in full.
+2. Then, clearly label and display the **final JSON result** underneath.
 
-Strict Rules:
--   **No Inference:** Stick *only* to explicit statements. Do not infer symptoms from medication lists (e.g., SSRI use ≠ "depression: present").
--   **Current Status Only:** Ignore future risks ("at risk for...") or unconfirmed historical issues.
--   **Independence:** Judge each symptom separately.
-
-Output Format:
-Respond *only* with a valid JSON object.
-
-{{
-  "anxiety": "present" | "absent" | "not mentioned",
-  "depression": "present" | "absent" | "not mentioned",
-  "pain": "present" | "absent" | "not mentioned"
-}}
-
-Here is the clinical note:
+Example Output:
 ---
-{note_text}
+**Original Note:**
+<full note text here>
+
+**Result:**
+{
+  "anxiety": "...",
+  "depression": "...",
+  "pain": "..."
+}
 ---
