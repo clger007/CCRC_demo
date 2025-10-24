@@ -1,5 +1,3 @@
-Here is a sample clinical note. This note is designed to be challenging for your prompt by using synonyms, mixing current and historical information, and embedding the key findings in surrounding text.
-
 CHIEF COMPLAINT: 6-month follow-up, medication management.
 
 HISTORY OF PRESENT ILLNESS: The patient is a 62-year-old male with a history of hypertension and hyperlipidemia here for a scheduled follow-up. He reports good adherence to his medications (Lisinopril and Atorvastatin). His home blood pressure log shows readings consistently in the 120s/70s.
