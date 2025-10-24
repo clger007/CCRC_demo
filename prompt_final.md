@@ -26,5 +26,5 @@ Example Output:
   "anxiety": "...",
   "depression": "...",
   "pain": "..."
-}
+} Limit your answer to only these three information extraction.
 ---
