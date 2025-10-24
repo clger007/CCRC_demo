@@ -27,7 +27,7 @@ Strict Rules:
 
 Here is the clinical note:
 ---
-{note_text}
+[{note_text}](https://github.com/clger007/CCRC_demo/blob/main/note_example_1.md)
 ---
 Output Format:
 
