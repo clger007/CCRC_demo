@@ -22,6 +22,7 @@ Example Output:
 <full note text here>
 
 **Result:**
+
 {
   "anxiety": "...",
   "depression": "...",
