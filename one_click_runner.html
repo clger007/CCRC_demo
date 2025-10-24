@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prompt Runner • GitHub → OpenAI</title>
+  <style>
+    :root { --bg:#0b1020; --card:#111935; --ink:#e8eeff; --muted:#9db0ff; --accent:#6aa7ff; }
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0b1020 0%,#0c1228 100%);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:980px;margin:40px auto;padding:16px}
+    .card{background:var(--card);border:1px solid #202a52;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:18px 18px}
+    h1{font-weight:800;letter-spacing:.2px;margin:0 0 4px}
+    .sub{color:var(--muted);margin:0 0 18px}
+    label{font-weight:600;margin:16px 0 6px;display:block}
+    input,textarea,select{width:100%;box-sizing:border-box;background:#0e1633;border:1px solid #233160;color:var(--ink);padding:12px 12px;border-radius:12px;outline:none}
+    input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,167,255,.2)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    button{background:linear-gradient(180deg,#6aa7ff,#4a8cff);color:#07122a;border:0;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer}
+    button.secondary{background:#18224a;color:var(--ink);border:1px solid #263568}
+    pre{white-space:pre-wrap;background:#0b132c;border:1px solid #1e2b57;border-radius:12px;padding:14px;overflow:auto}
+    .muted{color:#9fb1ff}
+    .tiny{font-size:12px}
+    .inline{display:inline-flex;gap:6px;align-items:center}
+    .ok{color:#66ffa6}
+    .err{color:#ff7575}
+    .k{letter-spacing:.3px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Prompt Runner</h1>
+      <p class="sub">Fetch a <strong>Prompt</strong> and a <strong>Note</strong> from GitHub raw URLs and generate an output using the OpenAI API — no ChatGPT UI involved.</p>
+
+      <div class="row">
+        <div>
+          <label for="prompt_url">Prompt URL (raw GitHub)</label>
+          <input id="prompt_url" placeholder="https://raw.githubusercontent.com/.../prompt.md" />
+        </div>
+        <div>
+          <label for="note_url">Note URL (raw GitHub)</label>
+          <input id="note_url" placeholder="https://raw.githubusercontent.com/.../note.md" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="model">Model</label>
+          <input id="model" value="gpt-4o-mini" />
+        </div>
+        <div>
+          <label for="api_base">API Base (optional)</label>
+          <input id="api_base" placeholder="https://api.openai.com" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="api_key" class="inline">OpenAI API Key <span id="key_status" class="tiny muted">(stored locally)</span></label>
+          <input id="api_key" type="password" placeholder="sk-..." />
+        </div>
+        <div>
+          <label for="seed">Deterministic Seed (optional)</label>
+          <input id="seed" type="number" placeholder="e.g. 7" />
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="run">Run</button>
+        <button id="download" class="secondary">Download Output</button>
+        <button id="save" class="secondary">Save Settings</button>
+        <button id="clear" class="secondary">Clear Key</button>
+      </div>
+
+      <p class="tiny muted">Tip: You can prefill via URL params: <code>?prompt=&lt;raw_url&gt;&note=&lt;raw_url&gt;&model=gpt-4o-mini</code></p>
+
+      <label for="out" style="margin-top:18px">Output</label>
+      <pre id="out" class="tiny">(nothing yet)</pre>
+
+      <details style="margin-top:10px">
+        <summary class="muted">Debug</summary>
+        <pre id="dbg" class="tiny"></pre>
+      </details>
+
+      <p class="tiny muted">Security: The API key is saved to <code>localStorage</code> in your browser and sent only to the configured API base. No servers of ours are involved.</p>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const out = $('out');
+  const dbg = $('dbg');
+
+  function logDbg(obj){
+    try{ dbg.textContent = JSON.stringify(obj, null, 2); } catch(e){ dbg.textContent = String(obj); }
+  }
+
+  function setStatus(ok){
+    const s = $('key_status');
+    s.textContent = ok ? '(key saved locally)' : '(not saved)';
+    s.className = 'tiny ' + (ok ? 'ok k' : 'err k');
+  }
+
+  // Prefill defaults for your repo links
+  const DEFAULT_PROMPT = 'https://raw.githubusercontent.com/clger007/CCRC_demo/refs/heads/main/note_example_1.md';
+  const DEFAULT_NOTE   = 'https://raw.githubusercontent.com/clger007/CCRC_demo/refs/heads/main/note_example_1.md';
+
+  // Restore saved values
+  (function init(){
+    const url = new URL(location.href);
+    $('prompt_url').value = url.searchParams.get('prompt') || localStorage.getItem('prompt_url') || DEFAULT_PROMPT;
+    $('note_url').value   = url.searchParams.get('note')   || localStorage.getItem('note_url')   || DEFAULT_NOTE;
+    $('model').value      = url.searchParams.get('model')  || localStorage.getItem('model')       || 'gpt-4o-mini';
+    $('api_base').value   = url.searchParams.get('base')   || localStorage.getItem('api_base')    || '';
+    $('seed').value       = url.searchParams.get('seed')   || localStorage.getItem('seed')        || '';
+
+    const savedKey = localStorage.getItem('openai_api_key') || '';
+    $('api_key').value = savedKey;
+    setStatus(!!savedKey);
+  })();
+
+  async function fetchText(u){
+    const r = await fetch(u, { cache: 'no-store' });
+    if(!r.ok) throw new Error('Fetch failed: ' + u + ' → ' + r.status + ' ' + r.statusText);
+    return r.text();
+  }
+
+  function save(){
+    localStorage.setItem('prompt_url', $('prompt_url').value.trim());
+    localStorage.setItem('note_url',   $('note_url').value.trim());
+    localStorage.setItem('model',      $('model').value.trim());
+    localStorage.setItem('api_base',   $('api_base').value.trim());
+    localStorage.setItem('seed',       $('seed').value.trim());
+
+    const k = $('api_key').value.trim();
+    if(k){ localStorage.setItem('openai_api_key', k); setStatus(true); }
+    out.textContent = '✓ Saved settings to localStorage.';
+  }
+
+  function clearKey(){
+    localStorage.removeItem('openai_api_key');
+    $('api_key').value = '';
+    setStatus(false);
+    out.textContent = '✓ API key cleared.';
+  }
+
+  function dl(text){
+    const blob = new Blob([text], {type:'text/markdown'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'prompt-runner-output.md';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function run(){
+    out.textContent = 'Running… fetching prompt and note…';
+    try{
+      const [promptText, noteText] = await Promise.all([
+        fetchText($('prompt_url').value.trim()),
+        fetchText($('note_url').value.trim())
+      ]);
+
+      const key = $('api_key').value.trim() || localStorage.getItem('openai_api_key') || '';
+      if(!key) throw new Error('Missing OpenAI API key. Enter it above and click Save.');
+
+      const model = $('model').value.trim() || 'gpt-4o-mini';
+      const base = ($('api_base').value.trim() || 'https://api.openai.com').replace(/\/$/,'');
+
+      // Compose messages: system gets the prompt, user gets the note
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: promptText },
+          { role: 'user', content: noteText }
+        ]
+      };
+
+      const seedVal = $('seed').value.trim();
+      if(seedVal !== ''){ body.seed = Number(seedVal); }
+
+      const resp = await fetch(base + '/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + key,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      const data = await resp.json();
+      logDbg({status: resp.status, data});
+
+      if(!resp.ok){
+        throw new Error((data && (data.error?.message || data.message)) || ('HTTP ' + resp.status));
+      }
+
+      const text = data.choices?.[0]?.message?.content?.trim() || '(no content)';
+      out.textContent = text;
+    } catch(err){
+      out.textContent = '✗ Error: ' + err.message;
+      console.error(err);
+    }
+  }
+
+  $('save').addEventListener('click', save);
+  $('clear').addEventListener('click', clearKey);
+  $('download').addEventListener('click', () => dl(out.textContent));
+  $('run').addEventListener('click', run);
+
+  // Optional auto-run: if ?autorun=1 is present
+  if(new URL(location.href).searchParams.get('autorun') === '1'){
+    run();
+  }
+})();
+</script>
+</body>
+</html>
